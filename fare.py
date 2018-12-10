@@ -8,22 +8,23 @@ from sklearn.ensemble import RandomForestRegressor
 
 import pdb
 
-class MainContext:
+class NYTaxiFareProcessor:
     GEOHASH_PREFIX = 'dr'
     GEOHASH_PRECISION = 5
 
-    def __init__(self, model, df):
+    def __init__(self, model, df, scoring):
         self.model = model
         self.df = df
+        self.scoring = scoring
 
-    def parse_date(self, timestamp):
+    def __parse_date(self, timestamp):
         return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S UTC")
 
-    def date_from_row(self, row):
+    def __date_from_row(self, row):
         timestamp = row.pickup_timestamp
-        return self.parse_date(timestamp)
+        return self.__parse_date(timestamp)
 
-    def date_series_from_row(self, row):
+    def __date_series_from_row(self, row):
         d = row.pickup_datetime
         return pd.Series({
             'year': d.year,
@@ -32,29 +33,29 @@ class MainContext:
             'hour': d.hour + d.minute / 60
         })
 
-    def parse_geohash(self, lat, lon):
+    def __parse_geohash(self, lat, lon):
         return geohash.encode(lat, lon, precision=self.GEOHASH_PRECISION)
 
-    def pickup_geohash_from_row(self, row):
+    def __pickup_geohash_from_row(self, row):
         lat, lon = row.pickup_latitude, row.pickup_longitude
-        return self.parse_geohash(lat, lon)
+        return self.__parse_geohash(lat, lon)
 
-    def dropoff_geohash_from_row(self, row):
+    def __dropoff_geohash_from_row(self, row):
         lat, lon = row.dropoff_latitude, row.dropoff_longitude
-        return self.parse_geohash(lat, lon)
+        return self.__parse_geohash(lat, lon)
 
     def preprocess(self):
         df = self.df
 
         df.drop(labels='key', axis=1, inplace=True)
         df.rename(columns={'pickup_datetime': 'pickup_timestamp'}, inplace=True)
-        df['pickup_datetime'] = df.apply(self.date_from_row, axis=1)
+        df['pickup_datetime'] = df.apply(self.__date_from_row, axis=1)
         df.drop(labels='pickup_timestamp', axis=1, inplace=True)
-        df_with_dates = df.apply(self.date_series_from_row, axis=1)
+        df_with_dates = df.apply(self.__date_series_from_row, axis=1)
         df = pd.concat([df, df_with_dates], axis=1)
         df.drop(labels='pickup_datetime', axis=1, inplace=True)
-        df['pickup_geohash'] = df.apply(self.pickup_geohash_from_row, axis=1)
-        df['dropoff_geohash'] = df.apply(self.dropoff_geohash_from_row, axis=1)
+        df['pickup_geohash'] = df.apply(self.__pickup_geohash_from_row, axis=1)
+        df['dropoff_geohash'] = df.apply(self.__dropoff_geohash_from_row, axis=1)
         df.drop(labels=[
             'pickup_latitude',
             'pickup_longitude',
@@ -85,9 +86,8 @@ class MainContext:
         #pdb.set_trace()
 
     def cross_validate(self):
-        scoring = 'r2'
-        scores = cross_val_score(self.model, self.X, self.y, cv=7, n_jobs=-1, scoring=scoring) 
-        return scores.mean()
+        scores = cross_val_score(self.model, self.X, self.y, cv=7, n_jobs=-1, scoring=self.scoring) 
+        return scores
 
     def run(self):
         self.preprocess()
@@ -97,7 +97,12 @@ if __name__ == '__main__':
     model = RandomForestRegressor(n_estimators=100)
     nrows = 1000000
     df = pd.read_csv('./data/NewYorkCityTaxiFare/train.csv', nrows=nrows)
-    context = MainContext(model=model, df=df)
-    mean_score = context.run()
-    print(f"rows number: {nrows}, mean score: {mean_score}")
+    scoring='neg_mean_squared_error'
+    processor = NYTaxiFareProcessor(model=model, df=df, scoring=scoring)
+    scores = processor.run()
+    rmse = np.sqrt(np.absolute(scores.mean()))
+    print(f"""rows number: {nrows},
+mean score: {scores.mean()},
+score std: {scores.std()},
+rmse: {rmse}""")
 
