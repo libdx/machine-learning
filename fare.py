@@ -2,11 +2,25 @@ import numpy as np
 import pandas as pd
 import category_encoders as ce
 import geohash2 as geohash
+import functools
 from datetime import datetime
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestRegressor
 
 import pdb
+
+def track_time(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        start = datetime.now()
+        result = f(*args, **kwargs)
+        end = datetime.now()
+        spent = end - start
+        print(f"\"{f.__name__}\" spent time: {spent}")
+        return result
+    return wrapper
+
+
 
 class NYTaxiFareProcessor:
     GEOHASH_PREFIX = 'dr'
@@ -44,6 +58,7 @@ class NYTaxiFareProcessor:
         lat, lon = row.dropoff_latitude, row.dropoff_longitude
         return self.__parse_geohash(lat, lon)
 
+    @track_time
     def preprocess(self):
         df = self.df
 
@@ -85,10 +100,12 @@ class NYTaxiFareProcessor:
         self.y = y
         #pdb.set_trace()
 
+    @track_time
     def cross_validate(self):
         scores = cross_val_score(self.model, self.X, self.y, cv=7, n_jobs=-1, scoring=self.scoring) 
         return scores
 
+    @track_time
     def run(self):
         self.preprocess()
         return self.cross_validate()
