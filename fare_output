@@ -1,1 +1,10 @@
 rows number: 1000000, mean r^2 score: 0.6997632712234848
+
+"load_data" spent time: 0:00:13.442561
+"preprocess" spent time: 0:33:40.158080
+"cross_validate" spent time: 0:08:51.682649
+"run" spent time: 0:42:31.840938
+rows number: 5000000,
+mean score: -29.470978614567994,
+score std: 0.7734261723146477,
+rmse: 5.428717953123739

@@ -110,10 +110,18 @@ class NYTaxiFareProcessor:
         self.preprocess()
         return self.cross_validate()
 
+@track_time
+def load_data(nrows):
+    if nrows is not None:
+        df = pd.read_csv('./data/NewYorkCityTaxiFare/train.csv', nrows=nrows)
+    else:
+        df = pd.read_csv('./data/NewYorkCityTaxiFare/train.csv')
+    return df
+
 if __name__ == '__main__':
-    model = RandomForestRegressor(n_estimators=100)
-    nrows = 1000000
-    df = pd.read_csv('./data/NewYorkCityTaxiFare/train.csv', nrows=nrows)
+    model = RandomForestRegressor(n_estimators=10)
+    nrows = 5000000
+    df = load_data(nrows)
     scoring='neg_mean_squared_error'
     processor = NYTaxiFareProcessor(model=model, df=df, scoring=scoring)
     scores = processor.run()
