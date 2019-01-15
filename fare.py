@@ -59,26 +59,29 @@ class NYTaxiFareProcessor:
         return self.__parse_geohash(lat, lon)
 
     @track_time
-    def preprocess(self):
-        df = self.df
-
-        df.drop(labels='key', axis=1, inplace=True)
+    def rename(self, df):
         df.rename(columns={'pickup_datetime': 'pickup_timestamp'}, inplace=True)
-        df['pickup_datetime'] = df.apply(self.__date_from_row, axis=1)
+        return df
+
+    @track_time
+    def drop_cols(self, df):
+        df.drop(labels='key', axis=1, inplace=True)
         df.drop(labels='pickup_timestamp', axis=1, inplace=True)
-        df_with_dates = df.apply(self.__date_series_from_row, axis=1)
-        df = pd.concat([df, df_with_dates], axis=1)
         df.drop(labels='pickup_datetime', axis=1, inplace=True)
-        df['pickup_geohash'] = df.apply(self.__pickup_geohash_from_row, axis=1)
-        df['dropoff_geohash'] = df.apply(self.__dropoff_geohash_from_row, axis=1)
         df.drop(labels=[
             'pickup_latitude',
             'pickup_longitude',
             'dropoff_latitude',
             'dropoff_longitude'
         ], axis=1, inplace=True)
-        df = df[df.pickup_geohash.str.startswith(self.GEOHASH_PREFIX) &\
-           df.dropoff_geohash.str.startswith(self.GEOHASH_PREFIX)]
+        return df
+
+    @track_time
+    def rescale(self, df):
+        return df
+
+    @track_time
+    def select(self, df):
         df = df[[
             'year',
             'month',
@@ -89,8 +92,40 @@ class NYTaxiFareProcessor:
             'passenger_count',
             'fare_amount'
         ]]
+        return df
+
+    @track_time
+    def transform_dates(self, df):
+        df['pickup_datetime'] = df.apply(self.__date_from_row, axis=1)
+        df_with_dates = df.apply(self.__date_series_from_row, axis=1)
+        df = pd.concat([df, df_with_dates], axis=1)
+        return df
+
+    @track_time
+    def transform_geolocation(self, df):
+        df['pickup_geohash'] = df.apply(self.__pickup_geohash_from_row, axis=1)
+        df['dropoff_geohash'] = df.apply(self.__dropoff_geohash_from_row, axis=1)
+        df = df[df.pickup_geohash.str.startswith(self.GEOHASH_PREFIX) &\
+           df.dropoff_geohash.str.startswith(self.GEOHASH_PREFIX)]
+
         ord_encoder = ce.OrdinalEncoder(cols=['pickup_geohash', 'dropoff_geohash'])
         df = ord_encoder.fit_transform(df)
+        return df
+
+    @track_time
+    def transform(self, df):
+        df = self.transform_dates(df)
+        df = self.transform_geolocation(df)
+        return df
+
+    @track_time
+    def preprocess(self):
+        df = self.df
+
+        df = self.rename(df)
+        df = self.transform(df)
+        df = self.rescale(df)
+        df = self.select(df)
 
         data = df.values
         X = data[:, :-1]
@@ -106,21 +141,21 @@ class NYTaxiFareProcessor:
         return scores
 
     @track_time
+    def fit(self):
+        pass
+
+    @track_time
     def run(self):
         self.preprocess()
         return self.cross_validate()
 
 @track_time
 def load_data(nrows):
-    if nrows is not None:
-        df = pd.read_csv('./data/NewYorkCityTaxiFare/train.csv', nrows=nrows)
-    else:
-        df = pd.read_csv('./data/NewYorkCityTaxiFare/train.csv')
-    return df
+    return pd.read_csv('./data/NewYorkCityTaxiFare/train.csv', nrows=nrows)
 
 if __name__ == '__main__':
     model = RandomForestRegressor(n_estimators=10)
-    nrows = 5000000
+    nrows = 10000
     df = load_data(nrows)
     scoring='neg_mean_squared_error'
     processor = NYTaxiFareProcessor(model=model, df=df, scoring=scoring)
