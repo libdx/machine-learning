@@ -11,8 +11,12 @@ scikit-learn = "*"
 matplotlib = "*"
 "geohash2" = "*"
 category-encoders = "*"
+tensorflow = "*"
+
+[scripts]
+fare = "python fare.py"
 
 [dev-packages]
 
 [requires]
-python_version = "3.7"
+python_version = "3.6"
