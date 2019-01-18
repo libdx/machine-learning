@@ -6,6 +6,8 @@ import functools
 from datetime import datetime
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn import preprocessing
 
 import tensorflow as tf
@@ -144,7 +146,7 @@ def load_data(nrows):
 
 @track_time
 def eval_random_forest():
-    nrows = 5000
+    nrows = 100000
 
     df = load_data(nrows)
     df = process(df)
@@ -152,6 +154,8 @@ def eval_random_forest():
     X = rescale(X)
 
     model = RandomForestRegressor(n_estimators=10)
+    #model = LinearRegression()
+    #model = KNeighborsRegressor()
     scoring='neg_mean_squared_error'
 
     scores = cross_validate(model, X, y, scoring=scoring)
@@ -205,5 +209,5 @@ def eval_tensorflow():
 
 if __name__ == '__main__':
     eval_random_forest()
-    eval_tensorflow()
+    #eval_tensorflow()
 
