@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import category_encoders as ce
@@ -142,7 +143,9 @@ def cross_validate(model, X, y, scoring):
 
 @track_time
 def load_data(nrows):
-    return pd.read_csv('./data/NewYorkCityTaxiFare/train.csv', nrows=nrows)
+    file = './data/NewYorkCityTaxiFare/train.csv'
+    path = os.path.join(os.path.dirname(__file__), file)
+    return pd.read_csv(path, nrows=nrows)
 
 @track_time
 def eval_random_forest():

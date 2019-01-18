@@ -14,7 +14,7 @@ category-encoders = "*"
 tensorflow = "*"
 
 [scripts]
-fare = "python fare.py"
+fare = "python fare/main.py"
 
 [dev-packages]
 
