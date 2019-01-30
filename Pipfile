@@ -17,6 +17,7 @@ tensorflow = "*"
 fare = "python fare/main.py"
 
 [dev-packages]
+pylint = "*"
 
 [requires]
 python_version = "3.6"

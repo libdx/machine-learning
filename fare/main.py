@@ -29,26 +29,8 @@ def track_time(f):
         return result
     return wrapper
 
-
-
 GEOHASH_PREFIX = 'dr'
 GEOHASH_PRECISION = 5
-
-def parse_date(timestamp):
-    return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S UTC")
-
-def date_from_row(row):
-    timestamp = row.pickup_timestamp
-    return parse_date(timestamp)
-
-def date_series_from_row(row):
-    d = row.pickup_datetime
-    return pd.Series({
-        'year': d.year,
-        'month': d.month,
-        'day': d.day,
-        'hour': d.hour + d.minute / 60
-    })
 
 def parse_geohash(lat, lon):
     return geohash.encode(lat, lon, precision=GEOHASH_PRECISION)
@@ -62,14 +44,8 @@ def dropoff_geohash_from_row(row):
     return parse_geohash(lat, lon)
 
 @track_time
-def rename(df):
-    df.rename(columns={'pickup_datetime': 'pickup_timestamp'}, inplace=True)
-    return df
-
-@track_time
 def drop_cols(df):
     df.drop(labels='key', axis=1, inplace=True)
-    df.drop(labels='pickup_timestamp', axis=1, inplace=True)
     df.drop(labels='pickup_datetime', axis=1, inplace=True)
     df.drop(labels=[
         'pickup_latitude',
@@ -99,9 +75,14 @@ def select(df):
 
 @track_time
 def transform_dates(df):
-    df['pickup_datetime'] = df.apply(date_from_row, axis=1)
-    df_with_dates = df.apply(date_series_from_row, axis=1)
-    df = pd.concat([df, df_with_dates], axis=1)
+    df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+    dt = df['pickup_datetime'].dt
+
+    df['year'] = dt.year
+    df['month'] = dt.month
+    df['day'] = dt.day
+    df['day_of_week'] = dt.dayofweek
+    df['hour'] = dt.hour
     return df
 
 @track_time
@@ -123,7 +104,6 @@ def transform(df):
 
 @track_time
 def process(df):
-    df = rename(df)
     df = transform(df)
     df = select(df)
     return df
