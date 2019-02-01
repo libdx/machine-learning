@@ -12,6 +12,7 @@ matplotlib = "*"
 "geohash2" = "*"
 category-encoders = "*"
 tensorflow = "*"
+seaborn = "*"
 
 [scripts]
 fare = "python fare/main.py"

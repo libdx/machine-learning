@@ -44,6 +44,10 @@ def dropoff_geohash_from_row(row):
     return parse_geohash(lat, lon)
 
 @track_time
+def clean(df):
+    pass
+
+@track_time
 def drop_cols(df):
     df.drop(labels='key', axis=1, inplace=True)
     df.drop(labels='pickup_datetime', axis=1, inplace=True)
@@ -123,13 +127,13 @@ def cross_validate(model, X, y, scoring):
 
 @track_time
 def load_data(nrows):
-    file = './data/NewYorkCityTaxiFare/train.csv'
+    file = './data/train.csv'
     path = os.path.join(os.path.dirname(__file__), file)
     return pd.read_csv(path, nrows=nrows)
 
 @track_time
 def eval_random_forest():
-    nrows = 100000
+    nrows = 100_000
 
     df = load_data(nrows)
     df = process(df)
@@ -158,7 +162,7 @@ def build_tensorflow_model(input_shape):
                   metrics=['mae', 'mse'])
     return model
 
-def rmse(mse):
+def rmse_from(mse):
     return np.sqrt(np.absolute(mse))
 
 class PrintDot(keras.callbacks.Callback):
@@ -170,13 +174,13 @@ class PrintDot(keras.callbacks.Callback):
 
 @track_time
 def eval_tensorflow():
-    nrows = 5000
+    nrows = 5_000
     df = load_data(nrows)
     df = process(df)
     X, y = split(df)
     X = rescale(X)
 
-    epochs = 1000
+    epochs = 1_000
 
     model = build_tensorflow_model([X.shape[1]])
     history = model.fit(
@@ -185,8 +189,11 @@ def eval_tensorflow():
 
     stats = pd.DataFrame(history.history)
     stats['epoch'] = history.epoch
-    stats['val_rmse'] = stats.apply(lambda row: rmse(row.val_mean_squared_error), axis=1)
-    stats['rmse'] = stats.apply(lambda row: rmse(row.mean_squared_error), axis=1)
+    stats['val_rmse'] = stats.apply(
+        lambda row: rmse_from(row.val_mean_squared_error),
+        axis=1
+    )
+    stats['rmse'] = stats.apply(lambda row: rmse_from(row.mean_squared_error), axis=1)
     print()
     print(stats.tail())
 
