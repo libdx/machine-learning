@@ -1,4 +1,5 @@
 import os
+from math import *
 import numpy as np
 import pandas as pd
 import category_encoders as ce
@@ -18,6 +19,8 @@ from tensorflow.keras import layers
 import pdb
 #pdb.set_trace()
 
+# Utils
+
 def track_time(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -28,6 +31,8 @@ def track_time(f):
         print(f"\"{f.__name__}\" spent time: {spent}")
         return result
     return wrapper
+
+# Geolocation
 
 GEOHASH_PREFIX = 'dr'
 GEOHASH_PRECISION = 5
@@ -42,6 +47,39 @@ def pickup_geohash_from_row(row):
 def dropoff_geohash_from_row(row):
     lat, lon = row.dropoff_latitude, row.dropoff_longitude
     return parse_geohash(lat, lon)
+
+def haversine(coordinate1, coordinate2):
+    """Return Haversine distance on Earth in meters for two given coordinates.
+
+    Arguments:
+    coordinate1 -- tuple for first point of latitude and longitude given in degrees
+    coordinate2 -- tuple for second point of latitude and longitude given in degrees
+    """
+    lat1, lon1 = coordinate1
+    lat2, lon2 = coordinate2
+
+    EARTH_RADIUS = 6371000
+    phi1 = radians(lat1)
+    phi2 = radians(lat2)
+
+    delta_phi = radians(lat2 - lat1)
+    delta_lambda = radians(lon2 - lon1)
+
+    a = sin(delta_phi / 2.0) ** 2 + cos(phi1) * cos(phi2) * sin(delta_lambda / 2.0) ** 2
+
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    distance = EARTH_RADIUS * c  
+    distance = round(distance, 3)
+
+    return distance
+
+
+def haversine_from_row(row):
+    coordinate1 = row.pickup_latitude, row.pickup_longitude
+    coordinate2 = row.dropoff_latitude, row.dropoff_longitude
+    return haversine(coordinate1, coordinate2)
+
 
 @track_time
 def clean(df):
@@ -72,9 +110,26 @@ def select(df):
         'hour',
         'pickup_geohash',
         'dropoff_geohash',
+        'distance',
         'passenger_count',
         'fare_amount'
     ]]
+    return df
+
+@track_time
+def transform_geohashes(df):
+    df['pickup_geohash'] = df.apply(pickup_geohash_from_row, axis=1)
+    df['dropoff_geohash'] = df.apply(dropoff_geohash_from_row, axis=1)
+    df = df[df.pickup_geohash.str.startswith(GEOHASH_PREFIX) &\
+       df.dropoff_geohash.str.startswith(GEOHASH_PREFIX)]
+
+    ord_encoder = ce.OrdinalEncoder(cols=['pickup_geohash', 'dropoff_geohash'])
+    df = ord_encoder.fit_transform(df)
+    return df
+
+@track_time
+def transform_distances(df):
+    df['distance'] = df.apply(haversine_from_row, axis=1)
     return df
 
 @track_time
@@ -91,13 +146,8 @@ def transform_dates(df):
 
 @track_time
 def transform_geolocation(df):
-    df['pickup_geohash'] = df.apply(pickup_geohash_from_row, axis=1)
-    df['dropoff_geohash'] = df.apply(dropoff_geohash_from_row, axis=1)
-    df = df[df.pickup_geohash.str.startswith(GEOHASH_PREFIX) &\
-       df.dropoff_geohash.str.startswith(GEOHASH_PREFIX)]
-
-    ord_encoder = ce.OrdinalEncoder(cols=['pickup_geohash', 'dropoff_geohash'])
-    df = ord_encoder.fit_transform(df)
+    df = transform_geohashes(df)
+    df = transform_distances(df)
     return df
 
 @track_time
@@ -133,7 +183,7 @@ def load_data(nrows):
 
 @track_time
 def eval_random_forest():
-    nrows = 100_000
+    nrows = 10_000
 
     df = load_data(nrows)
     df = process(df)
