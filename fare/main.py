@@ -83,7 +83,9 @@ def haversine_from_row(row):
 
 @track_time
 def clean(df):
-    pass
+    df = df[df.fare_amount >= 0]
+    df = df.dropna()
+    return df
 
 @track_time
 def drop_cols(df):
@@ -158,6 +160,7 @@ def transform(df):
 
 @track_time
 def process(df):
+    df = clean(df)
     df = transform(df)
     df = select(df)
     return df
@@ -224,7 +227,7 @@ class PrintDot(keras.callbacks.Callback):
 
 @track_time
 def eval_tensorflow():
-    nrows = 5_000
+    nrows = 50_000
     df = load_data(nrows)
     df = process(df)
     X, y = split(df)
@@ -248,6 +251,6 @@ def eval_tensorflow():
     print(stats.tail())
 
 if __name__ == '__main__':
-    eval_random_forest()
-    #eval_tensorflow()
+    #eval_random_forest()
+    eval_tensorflow()
 
