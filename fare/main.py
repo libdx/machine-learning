@@ -1,5 +1,6 @@
 import os
 from math import *
+import pickle
 import numpy as np
 import pandas as pd
 import category_encoders as ce
@@ -179,21 +180,61 @@ def cross_validate(model, X, y, scoring):
     return scores
 
 @track_time
-def load_data(nrows):
+def load_dataframe(nrows):
     file = './data/train.csv'
     path = os.path.join(os.path.dirname(__file__), file)
     return pd.read_csv(path, nrows=nrows)
 
+CACHE_PATH = os.path.join(os.path.dirname(__file__), 'cache.pckl')
+
+@track_time
+def load_from_cache(nrows):
+    cache = {}
+    try:
+        file = open(CACHE_PATH, 'rb')
+        cache = pickle.load(file)
+    except FileNotFoundError:
+        # create cache file
+        open(CACHE_PATH, 'wb').close()
+    return cache.get(nrows)
+
+@track_time
+def save_to_cache(nrows, X, y):
+    cache = {}
+    with open(CACHE_PATH, 'rb') as file:
+        try:
+            cache = pickle.load(file)
+        except EOFError:
+            cache = {}
+    cache[nrows] = (X, y)
+
+    with open(CACHE_PATH, 'wb') as file:
+        pickle.dump(cache, file)
+
+    return X, y
+
+@track_time
+def load_data(nrows):
+    data = load_from_cache(nrows)
+
+    if data is None:
+        df = load_dataframe(nrows)
+        df = process(df)
+        X, y = split(df)
+        X = rescale(X)
+        save_to_cache(nrows, X, y)
+    else:
+        X, y = data
+
+    return X, y
+
 @track_time
 def eval_random_forest():
-    nrows = 10_000
+    nrows = 10_001
 
-    df = load_data(nrows)
-    df = process(df)
-    X, y = split(df)
-    X = rescale(X)
+    X, y = load_data(nrows)
 
-    model = RandomForestRegressor(n_estimators=10)
+    model = RandomForestRegressor(n_estimators=100)
     #model = LinearRegression()
     #model = KNeighborsRegressor()
     scoring='neg_mean_squared_error'
@@ -201,6 +242,13 @@ def eval_random_forest():
     scores = cross_validate(model, X, y, scoring=scoring)
     rmse = np.sqrt(np.absolute(scores.mean()))
     print(f"""rows number: {nrows}, \nmean score: {scores.mean()}, \nscore std: {scores.std()}, \nrmse: {rmse}""")
+
+class PrintDot(keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs):
+        if epoch % 100 == 0: 
+            print('')
+        print('.', end='')
+
 
 @track_time
 def build_tensorflow_model(input_shape):
@@ -227,11 +275,9 @@ class PrintDot(keras.callbacks.Callback):
 
 @track_time
 def eval_tensorflow():
-    nrows = 50_000
-    df = load_data(nrows)
-    df = process(df)
-    X, y = split(df)
-    X = rescale(X)
+    nrows = 10_001
+
+    X, y = load_data(nrows)
 
     epochs = 1_000
 
@@ -251,6 +297,6 @@ def eval_tensorflow():
     print(stats.tail())
 
 if __name__ == '__main__':
-    #eval_random_forest()
-    eval_tensorflow()
+    eval_random_forest()
+    #eval_tensorflow()
 
