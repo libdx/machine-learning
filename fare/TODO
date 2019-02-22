@@ -1,10 +1,12 @@
-more feature engineering from articles
-better data cleaning based on articles
-run in cloud big dataset
 refactor to train model
 refactor to generate submission results
+run in cloud big dataset
 submit results base on:
     - Random Forest
     - Tensor Flow
+
+more feature engineering from articles
+better data cleaning based on articles
 practice in data plotting
+look for outliers
 

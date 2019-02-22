@@ -8,6 +8,7 @@ import geohash2 as geohash
 import functools
 from datetime import datetime
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
@@ -229,7 +230,7 @@ def load_data(nrows):
     return X, y
 
 @track_time
-def eval_random_forest():
+def score_random_forest():
     nrows = 10_001
 
     X, y = load_data(nrows)
@@ -242,6 +243,28 @@ def eval_random_forest():
     scores = cross_validate(model, X, y, scoring=scoring)
     rmse = np.sqrt(np.absolute(scores.mean()))
     print(f"""rows number: {nrows}, \nmean score: {scores.mean()}, \nscore std: {scores.std()}, \nrmse: {rmse}""")
+
+@track_time
+def train_random_forest():
+    nrows = 10_001
+
+    X, y = load_data(nrows)
+
+    model = RandomForestRegressor(n_estimators=100)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    model.fit(X_train, y_train)
+
+    scores = {}
+    scores['train'] = model.score(X_train, y_train)
+    scores['test'] = model.score(X_test, y_test)
+
+    print(f"{scores}")
+
+    return model
 
 class PrintDot(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs):
@@ -274,7 +297,7 @@ class PrintDot(keras.callbacks.Callback):
 
 
 @track_time
-def eval_tensorflow():
+def score_tensorflow():
     nrows = 10_001
 
     X, y = load_data(nrows)
@@ -296,7 +319,15 @@ def eval_tensorflow():
     print()
     print(stats.tail())
 
+def eval_models():
+    score_random_forest()
+    #score_tensorflow()
+
+@track_time
+def train_models():
+    train_random_forest()
+
 if __name__ == '__main__':
-    eval_random_forest()
-    #eval_tensorflow()
+    #eval_models()
+    train_models()
 
